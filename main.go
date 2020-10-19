@@ -133,11 +133,7 @@ func (req *Request) GetResponse() (Response, error) {
 	end := time.Now()
 	responseResult := Response{}
 	elapsed := (end.Unix() * 1000) - (start.Unix() * 1000)
-	if elapsed >= 0 {
-		responseResult.TimeInMs = uint64(elapsed)
-	} else {
-		responseResult.TimeInMs = 0
-	}
+	responseResult.TimeInMs = uint64(elapsed)
 	responseResult.Body = string(result)
 	responseResult.ResponseSize = sumBytes(result)
 	responseResult.StatusCode = readStatusCode(responseResult.Body)
@@ -178,9 +174,13 @@ func (profiler *Profiler) StartProfiling() {
 	if len(responseTimes) > 0 {
 		isEven := len(responseTimes) % 2 == 0
 		if isEven {
-			leftIdx := len(responseTimes) / 2
-			rightIdx := (len(responseTimes) / 2) + 1
-			profiler.MedianResponseTime = (responseTimes[leftIdx] + responseTimes[rightIdx]) / 2
+			if len(responseTimes) == 2 {
+				profiler.MedianResponseTime = (responseTimes[0] + responseTimes[1]) / 2
+			} else {
+				leftIdx := (len(responseTimes) / 2) - 1
+				rightIdx := len(responseTimes) / 2
+				profiler.MedianResponseTime = (responseTimes[leftIdx] + responseTimes[rightIdx]) / 2
+			}
 		} else {
 			medianIdx := len(responseTimes) / 2
 			profiler.MedianResponseTime = responseTimes[medianIdx]
