@@ -59,7 +59,7 @@ func sumBytes(bytes []byte) byte {
 
 func readStatusCode(body string) uint16 {
 	leftOfStatus := strings.Index(body, " ")
-	statusCodeAsString := body[leftOfStatus + 1 : (leftOfStatus + 1 + 4)]
+	statusCodeAsString := body[leftOfStatus+1 : (leftOfStatus + 1 + 4)]
 	res, _ := strconv.ParseUint(strings.TrimSpace(statusCodeAsString), 10, 64)
 	statusCodeResult := uint16(res)
 	return statusCodeResult
@@ -75,16 +75,16 @@ type Response struct {
 }
 
 type Request struct {
-	Address string `json:"address"`
+	Address         string `json:"address"`
 	AddressStripped string `json:"addressStripped"`
-	Route   string `json:"requestedRoute"`
+	Route           string `json:"requestedRoute"`
 }
 
 type Profiler struct {
-	RequestCount           *uint64 `json:"totalRequestCount"`
-	FailedRequestCount     *uint64 `json:"failedRequestCount"`
-	SuccessfulRequestCount *uint64 `json:"successfulRequestCount"`
-	ErrorCodes []uint16 `json:"errorCodes,omitempty"`
+	RequestCount           *uint64  `json:"totalRequestCount"`
+	FailedRequestCount     *uint64  `json:"failedRequestCount"`
+	SuccessfulRequestCount *uint64  `json:"successfulRequestCount"`
+	ErrorCodes             []uint16 `json:"errorCodes,omitempty"`
 
 	Request Request `json:"originalRequest"`
 
@@ -111,17 +111,22 @@ func (profiler *Profiler) Print() {
 
 func (req *Request) GetResponse() (Response, error) {
 	start := time.Now()
-	conn, err := net.Dial("tcp", req.AddressStripped + ":443")
+	cf := &tls.Config{
+		Rand:               rand.Reader,
+		InsecureSkipVerify: true,
+	}
+	cf.Time = func() time.Time { return time.Now() }
+	ssl, err := tls.Dial("tcp", net.JoinHostPort(req.AddressStripped, "443"), cf)
 	if err != nil {
 		return Response{}, err
 	}
-	cf := &tls.Config{Rand: rand.Reader, InsecureSkipVerify: true}
-	ssl := tls.Client(conn, cf)
-	if err != nil {
-		panic(err)
+	needsWorldWideWeb := strings.Contains(req.Address, "www.")
+	tcpRequestString := ""
+	if needsWorldWideWeb {
+		tcpRequestString = "GET " + req.Route + " HTTP/1.1\r\nHost: www." + req.AddressStripped + "\r\nConnection: close\r\nContent-Type: */* charset=utf-8;\r\nUpgrade-Insecure-Requests: 1\r\nAccept: */*\r\nX-Originating-URL: " + req.AddressStripped + "\r\n\r\n"
+	} else {
+		tcpRequestString = "GET " + req.Route + " HTTP/1.1\r\nHost: " + req.AddressStripped + "\r\nConnection: close\r\nContent-Type: */* charset=utf-8;\r\nUpgrade-Insecure-Requests: 1\r\nAccept: */*\r\nX-Originating-URL: " + req.AddressStripped + "\r\n\r\n"
 	}
-	defer ssl.Close()
-	tcpRequestString := "GET " + req.Route + " HTTP/1.1\r\nHost: " + req.Address + "\r\nConnection: close\r\nContent-Type: text/html charset=utf-8;\r\nAccept: */*\r\n\r\n"
 	_, err = ssl.Write([]byte(tcpRequestString))
 	if err != nil {
 		return Response{}, err
@@ -137,6 +142,7 @@ func (req *Request) GetResponse() (Response, error) {
 	responseResult.Body = string(result)
 	responseResult.ResponseSize = sumBytes(result)
 	responseResult.StatusCode = readStatusCode(responseResult.Body)
+	defer ssl.Close()
 	return responseResult, nil
 }
 
@@ -172,7 +178,7 @@ func (profiler *Profiler) StartProfiling() {
 	})
 
 	if len(responseTimes) > 0 {
-		isEven := len(responseTimes) % 2 == 0
+		isEven := len(responseTimes)%2 == 0
 		if isEven {
 			if len(responseTimes) == 2 {
 				profiler.MedianResponseTime = (responseTimes[0] + responseTimes[1]) / 2
@@ -216,8 +222,8 @@ func main() {
 			}
 			response.Print()
 		} else {
-			profiler := &Profiler{ RequestCount: profile, FailedRequestCount: new(uint64), SuccessfulRequestCount: new(uint64),
-				MinResponseSize: 0, MaxResponseSize: 0, FastestResponseTime: math.MaxUint64, SlowestResponseTime: 0, Request: *request, ErrorCodes: make([]uint16, 0) }
+			profiler := &Profiler{RequestCount: profile, FailedRequestCount: new(uint64), SuccessfulRequestCount: new(uint64),
+				MinResponseSize: 0, MaxResponseSize: 0, FastestResponseTime: math.MaxUint64, SlowestResponseTime: 0, Request: *request, ErrorCodes: make([]uint16, 0)}
 			profiler.StartProfiling()
 			profiler.Print()
 			//percentage stat
@@ -227,21 +233,22 @@ func main() {
 	os.Exit(0)
 }
 
-
 func parseAddressAndRoute(url string) (string, string, string) {
 	address := url[:strings.LastIndex(url, ".")]
 	route := ""
 	for idx := strings.LastIndex(url, "."); idx < len(url); idx++ {
-		if url[idx:idx + 1] != "/" {
-			address += url[idx:idx + 1]
+		if url[idx:idx+1] != "/" {
+			address += url[idx : idx+1]
 		} else {
 			route = url[idx:]
 			break
 		}
 	}
 	addressStripped := address
-	if strings.HasPrefix(address, "http") || strings.HasPrefix(address, "www.") {
-		addressStripped = address[strings.Index(address, ".") + 1:]
+	if (strings.HasPrefix(address, "http") && strings.Contains(address, "www.")) || strings.HasPrefix(address, "www.") {
+		addressStripped = address[strings.Index(address, ".")+1:]
+	} else if strings.HasPrefix(address, "http") {
+		addressStripped = address[strings.Index(address, ":")+3:]
 	}
 	routeIdx := strings.Index(addressStripped, "/")
 	if routeIdx != -1 {
