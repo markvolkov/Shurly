@@ -1,7 +1,15 @@
 ---
 # Systems Engineering Project
-> Submission for CloudFlare-Hiring 2020
 > By Mark Volkov
+>
+> Profile the performance of your webpages from a client point of view!
+
+# Build the script
+> go build main.go
+
+# Usage
+> ./main -url="your-website.com" --> This will give a high level overview of your web page.
+> ./main -url="your-website.com -profile=amountOfRequests --> This will make amountofRequests requests to your web page and give you profiling information.
 
 # Output from running 3 profiles
 > ./main -url="https://linktree-style-worker.markvolkov.workers.dev" -profile=10
@@ -15,12 +23,12 @@
       "addressStripped":"linktree-style-worker.markvolkov.workers.dev",
       "requestedRoute":"/"
    },
-   "minResponseSize":0,
-   "maxResponseSize":255,
-   "meanResponseTime":100,
-   "medianResponseTime":0,
-   "fastestResponseTime":0,
-   "slowestResponseTime":1000
+   "minResponseSize":51,
+   "maxResponseSize":250,
+   "meanResponseTime":125,
+   "medianResponseTime":160,
+   "fastestResponseTime":81,
+   "slowestResponseTime":187
 }
 2020/10/19 15:26:51 Percentage of successful requests (10 / 10) = %100
 ```
@@ -35,35 +43,32 @@
       "addressStripped":"linktree-style-worker.markvolkov.workers.dev",
       "requestedRoute":"/links"
    },
-   "minResponseSize":0,
-   "maxResponseSize":225,
-   "meanResponseTime":100,
-   "medianResponseTime":0,
-   "fastestResponseTime":0,
-   "slowestResponseTime":1000
+   "minResponseSize":35,
+   "maxResponseSize":252,
+   "meanResponseTime":59,
+   "medianResponseTime":57,
+   "fastestResponseTime":45,
+   "slowestResponseTime":91
 }
 2020/10/19 15:27:12 Percentage of successful requests (10 / 10) = %100
 ```
 > ./main -url="https://www.netflix.com" -profile=10
 ```
 {
-  "totalRequestCount":10,
-  "failedRequestCount":0,
-  "successfulRequestCount":10,
-  "originalRequest":{
-     "address":"https://www.netflix.com",
-     "addressStripped":"netflix.com",
-     "requestedRoute":"/"
-  },
-  "minResponseSize":0,
-  "maxResponseSize":251,
-  "meanResponseTime":400,
-  "medianResponseTime":500,
-  "fastestResponseTime":0,
-  "slowestResponseTime":1000
+   "totalRequestCount":10,
+   "failedRequestCount":0,
+   "successfulRequestCount":10,
+   "originalRequest":{
+      "address":"https://www.netflix.com",
+      "addressStripped":"netflix.com",
+      "requestedRoute":"/"
+   },
+   "minResponseSize":12,
+   "maxResponseSize":218,
+   "meanResponseTime":492,
+   "medianResponseTime":417,
+   "fastestResponseTime":315,
+   "slowestResponseTime":874
 }
 2020/10/19 15:27:36 Percentage of successful requests (10 / 10) = %100
 ```
-
-# Simple but interesting findings...
-I found that the url requests made to the links associated with my worker site were much more consistent than most other sites in terms of the max response size, the median response time, and the mean response time, I also found that most successful requests were completed in at most 1000ms or 1 second.
