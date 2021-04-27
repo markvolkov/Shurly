@@ -17,6 +17,10 @@ import (
 	"time"
 )
 
+func getTimeStamp() int64 {
+	return time.Now().UnixNano() / int64(time.Millisecond)
+}
+
 func minInt(x, y uint64) uint64 {
 	if x > y {
 		return y
@@ -66,6 +70,7 @@ func readStatusCode(body string) uint16 {
 }
 
 const requestDelay = 2 //seconds
+const maximumByte byte = 255
 
 type Response struct {
 	TimeInMs     uint64 `json:"timeInMs"`
@@ -110,7 +115,7 @@ func (profiler *Profiler) Print() {
 }
 
 func (req *Request) GetResponse() (Response, error) {
-	start := time.Now()
+	start := getTimeStamp()
 	cf := &tls.Config{
 		Rand:               rand.Reader,
 		InsecureSkipVerify: true,
@@ -135,9 +140,8 @@ func (req *Request) GetResponse() (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
-	end := time.Now()
 	responseResult := Response{}
-	elapsed := (end.Unix() * 1000) - (start.Unix() * 1000)
+	elapsed := getTimeStamp() - start
 	responseResult.TimeInMs = uint64(elapsed)
 	responseResult.Body = string(result)
 	responseResult.ResponseSize = sumBytes(result)
@@ -161,10 +165,12 @@ func (profiler *Profiler) StartProfiling() {
 		} else {
 			profiler.MinResponseSize = minByte(profiler.MinResponseSize, currentResponse.ResponseSize)
 			profiler.MaxResponseSize = maxByte(profiler.MaxResponseSize, currentResponse.ResponseSize)
+
 			profiler.SlowestResponseTime = maxInt(profiler.SlowestResponseTime, currentResponse.TimeInMs)
 			profiler.FastestResponseTime = minInt(profiler.FastestResponseTime, currentResponse.TimeInMs)
 
 			responseTimes = append(responseTimes, currentResponse.TimeInMs)
+
 			responseTimeRunningSum += currentResponse.TimeInMs
 
 			*profiler.SuccessfulRequestCount++
@@ -212,7 +218,7 @@ func main() {
 		log.Fatal("You must provide a -url argument. Example -url=\"cloudflare.com\"")
 	} else {
 		address, route, addressStripped := parseAddressAndRoute(*url)
-		request := &Request{Address: address, AddressStripped: addressStripped, Route: route}
+		request := &Request{ Address: address, AddressStripped: addressStripped, Route: route }
 		if *profile == 0 {
 			response, err := request.GetResponse()
 			if err != nil {
@@ -222,8 +228,8 @@ func main() {
 			}
 			response.Print()
 		} else {
-			profiler := &Profiler{RequestCount: profile, FailedRequestCount: new(uint64), SuccessfulRequestCount: new(uint64),
-				MinResponseSize: 0, MaxResponseSize: 0, FastestResponseTime: math.MaxUint64, SlowestResponseTime: 0, Request: *request, ErrorCodes: make([]uint16, 0)}
+			profiler := &Profiler{ RequestCount: profile, FailedRequestCount: new(uint64), SuccessfulRequestCount: new(uint64),
+				MinResponseSize: maximumByte, MaxResponseSize: 0, FastestResponseTime: 0, SlowestResponseTime: math.MaxUint64, Request: *request, ErrorCodes: make([]uint16, 0) }
 			profiler.StartProfiling()
 			profiler.Print()
 			//percentage stat
