@@ -9,6 +9,7 @@
 
 # Usage
 > ./main -url="your-website.com" --> This will give a high level overview of your web page.
+> 
 > ./main -url="your-website.com -profile=amountOfRequests --> This will make amountofRequests requests to your web page and give you profiling information.
 
 # Output from running 3 profiles
