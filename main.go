@@ -229,7 +229,7 @@ func main() {
 			response.Print()
 		} else {
 			profiler := &Profiler{ RequestCount: profile, FailedRequestCount: new(uint64), SuccessfulRequestCount: new(uint64),
-				MinResponseSize: maximumByte, MaxResponseSize: 0, FastestResponseTime: 0, SlowestResponseTime: math.MaxUint64, Request: *request, ErrorCodes: make([]uint16, 0) }
+				MinResponseSize: maximumByte, MaxResponseSize: 0, FastestResponseTime: math.MaxUint64, SlowestResponseTime: 0, Request: *request, ErrorCodes: make([]uint16, 0) }
 			profiler.StartProfiling()
 			profiler.Print()
 			//percentage stat
